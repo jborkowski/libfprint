@@ -1043,16 +1043,18 @@ goodix_send_tls_successfully_established (FpDevice          *dev,
 
       cb_info->callback = G_CALLBACK (callback);
       cb_info->user_data = user_data;
+      // special case: timeout needs to be at least 10ms and it will always timeout for some reason
+      // todo: work out why it always times out for this but not the python driver
 
       goodix_send_protocol (dev, GOODIX_CMD_TLS_SUCCESSFULLY_ESTABLISHED,
                             (guint8 *) &payload, sizeof (payload), NULL, TRUE,
-                            GOODIX_TIMEOUT, FALSE, goodix_receive_none, cb_info);
+                            10, FALSE, goodix_receive_none, cb_info);
       return;
     }
 
   goodix_send_protocol (dev, GOODIX_CMD_TLS_SUCCESSFULLY_ESTABLISHED,
                         (guint8 *) &payload, sizeof (payload), NULL, TRUE,
-                        GOODIX_TIMEOUT, FALSE, NULL, NULL);
+                        10, FALSE, NULL, NULL);
 }
 
 void
