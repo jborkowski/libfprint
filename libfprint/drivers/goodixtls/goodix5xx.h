@@ -251,3 +251,5 @@ gboolean goodixtls5xx_save_image_to_pgm (FpImage    *img,
 void goodixtls5xx_squash_frame_linear (GoodixTls5xxPix *frame,
                                        guint8          *squashed,
                                        guint16          frame_size);
+
+void goodixtls5xx_cleanup(FpiDeviceGoodixTls5xx* dev);

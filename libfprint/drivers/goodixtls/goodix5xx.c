@@ -32,7 +32,7 @@
 typedef struct
 {
   guint8 * otp; // TODO: Remove
-  FpImage* calibration_img;
+  GoodixTls5xxPix* calibration_img;
 } FpiDeviceGoodixTls5xxPrivate;
 
 G_DEFINE_ABSTRACT_TYPE_WITH_PRIVATE (FpiDeviceGoodixTls5xx, fpi_device_goodixtls5xx, FPI_TYPE_DEVICE_GOODIXTLS)
@@ -58,17 +58,6 @@ enum SCAN_STAGES {
   SCAN_STAGE_NUM,
 };
 
-static FpImage* decode_image(FpDevice* dev, guint8* data, guint16 len) {
-  FpiDeviceGoodixTls5xxClass *cls = FPI_DEVICE_GOODIXTLS5XX_GET_CLASS (dev);
-
-  GoodixTls5xxPix * raw_frame = calloc (cls->scan_width * cls->scan_height, sizeof (GoodixTls5xxPix));
-  goodixtls5xx_decode_frame (raw_frame, len, data);
-  guint8 * squashed = calloc (cls->scan_height * cls->scan_width, 1);
-  goodixtls5xx_squash_frame_linear (raw_frame, squashed, cls->scan_height * cls->scan_width);
-  free (raw_frame);
-  FpImage * img = cls->process_frame (squashed);
-  return img;
-}
 
 static void
 send_switch_mode (FpDevice * dev, gpointer ssm, void (*mode_switch)(FpDevice *, const guint8 *, guint16, GDestroyNotify, GoodixDefaultCallback, gpointer))
@@ -85,10 +74,12 @@ static void on_calibrate_scan(FpDevice* dev, guint8* data, guint16 len, gpointer
   }
   FpiDeviceGoodixTls5xx* self = FPI_DEVICE_GOODIXTLS5XX(dev);
   FpiDeviceGoodixTls5xxPrivate* priv = fpi_device_goodixtls5xx_get_instance_private(self);
-  if (priv->calibration_img) {
-    g_free(priv->calibration_img);
+  FpiDeviceGoodixTls5xxClass * cls = FPI_DEVICE_GOODIXTLS5XX_GET_CLASS (self);
+  if (!priv->calibration_img) {
+    priv->calibration_img = calloc(cls->scan_height * cls->scan_width, sizeof(GoodixTls5xxPix));
   }
-  priv->calibration_img = decode_image(dev, data, len);
+  goodixtls5xx_decode_frame(priv->calibration_img, len, data);
+
   fpi_ssm_next_state(ssm);
 }
 static void calibrate_run(FpiSsm* ssm, FpDevice* dev) {
@@ -317,6 +308,12 @@ goodixtls5xx_squash_frame_linear (GoodixTls5xxPix *frame, guint8 *squashed, guin
         squashed[i] = (pix - min) * 0xff / (max - min);
     }
 }
+static void linear_subtract_inplace(GoodixTls5xxPix* src, GoodixTls5xxPix* by, guint16 len) {
+  const guint16 max = -1;
+  for (guint16 n = 0; n != len; ++n) {
+    src[n] = MAX(0, ((max - src[n]) - (max - by[n])));
+  }
+}
 
 static void
 scan_on_read_img (FpDevice *dev, guint8 *data, guint16 len,
@@ -330,7 +327,18 @@ scan_on_read_img (FpDevice *dev, guint8 *data, guint16 len,
 
   FpImageDevice * img_dev = FP_IMAGE_DEVICE (dev);
 
-  FpImage * img = decode_image(dev, data, len);
+  FpiDeviceGoodixTls5xx* self = FPI_DEVICE_GOODIXTLS5XX(dev);
+  FpiDeviceGoodixTls5xxPrivate* priv = fpi_device_goodixtls5xx_get_instance_private(self);
+  FpiDeviceGoodixTls5xxClass *cls = FPI_DEVICE_GOODIXTLS5XX_GET_CLASS (dev);
+
+  GoodixTls5xxPix * raw_frame = calloc (cls->scan_width * cls->scan_height, sizeof (GoodixTls5xxPix));
+  goodixtls5xx_decode_frame (raw_frame, len, data);
+  linear_subtract_inplace(raw_frame, priv->calibration_img, cls->scan_width * cls->scan_height);
+  guint8 * squashed = calloc (cls->scan_height * cls->scan_width, 1);
+  goodixtls5xx_squash_frame_linear (raw_frame, squashed, cls->scan_height * cls->scan_width);
+  free (raw_frame);
+  FpImage * img = cls->process_frame (squashed);
+  free(squashed);
 
   fpi_image_device_image_captured (img_dev, img);
 
@@ -510,6 +518,7 @@ dev_deactivate (FpImageDevice *img_dev)
   goodix_shutdown_tls (dev, &error);
 
   FpiDeviceGoodixTls5xxClass *cls = FPI_DEVICE_GOODIXTLS5XX_GET_CLASS (dev);
+  goodixtls5xx_cleanup(FPI_DEVICE_GOODIXTLS5XX(dev));
 
   if (cls->reset_state)
     cls->reset_state (dev);
@@ -559,4 +568,10 @@ fpi_device_goodixtls5xx_init (FpiDeviceGoodixTls5xx * self)
   FpiDeviceGoodixTls5xxPrivate* priv = fpi_device_goodixtls5xx_get_instance_private(self);
   priv->calibration_img = NULL;
   priv->otp = NULL;
+}
+
+void goodixtls5xx_cleanup(FpiDeviceGoodixTls5xx* dev) {
+  FpiDeviceGoodixTls5xxPrivate* priv = fpi_device_goodixtls5xx_get_instance_private(dev);
+  g_free(priv->calibration_img);
+  priv->calibration_img = NULL;
 }
