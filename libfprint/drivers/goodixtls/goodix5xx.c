@@ -397,6 +397,7 @@ scan_run_state (FpiSsm * ssm, FpDevice * dev)
 
     case SCAN_STAGE_SWITCH_TO_FTD_DONE:
       fpi_image_device_report_finger_status (img_dev, FALSE);
+      fpi_ssm_next_state(ssm);
       break;
     }
 }
