@@ -252,4 +252,10 @@ void goodixtls5xx_squash_frame_linear (GoodixTls5xxPix *frame,
                                        guint8          *squashed,
                                        guint16          frame_size);
 
+/**
+ * @brief Cleans up the state after activation. If you replaced the deactivate callback
+ * then you will need to call this, otherwise don't worry its done for you
+ *
+ * @param dev device to cleanup the state for
+ */
 void goodixtls5xx_cleanup(FpiDeviceGoodixTls5xx* dev);
