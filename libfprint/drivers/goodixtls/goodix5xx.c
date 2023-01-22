@@ -311,7 +311,7 @@ goodixtls5xx_squash_frame_linear (GoodixTls5xxPix *frame, guint8 *squashed, guin
 static void linear_subtract_inplace(GoodixTls5xxPix* src, GoodixTls5xxPix* by, guint16 len) {
   const guint16 max = -1;
   for (guint16 n = 0; n != len; ++n) {
-    src[n] = MAX(0, ((max - src[n]) - (max - by[n])));
+    src[n] = MAX(0, max - ((max - src[n]) - (max - by[n])));
   }
 }
 
