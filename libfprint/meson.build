@@ -228,6 +228,8 @@ deps = [
     mathlib_dep,
 ] + optional_deps
 
+subdir('sigfm')
+
 # These are empty and only exist so that the include directories are created
 # in the build tree. This silences a build time warning.
 subdir('nbis/include')
@@ -250,13 +252,15 @@ libnbis = static_library('nbis',
     ]),
     install: false)
 
+priv_deps = deps + libsigfm
+
 libfprint_private = static_library('fprint-private',
     sources: [
         fpi_enums,
         libfprint_private_sources,
     ],
     dependencies: deps,
-    link_with: libnbis,
+    link_with: [libnbis, libsigfm],
     install: false)
 
 libfprint_drivers = static_library('fprint-drivers',
@@ -267,7 +271,7 @@ libfprint_drivers = static_library('fprint-drivers',
     install: false)
 
 mapfile = files('libfprint.ver')
-vflag = '-Wl,--version-script,@0@/@1@'.format(meson.source_root(), mapfile[0])
+vflag = '-Wl,--version-script,@0@/@1@'.format(meson.project_source_root(), mapfile[0])
 
 libfprint = shared_library(versioned_libname.split('lib')[1],
     sources: [
@@ -294,6 +298,9 @@ libfprint_dep = declare_dependency(link_with: libfprint,
 
 install_headers(['fprint.h'] + libfprint_public_headers,
     subdir: versioned_libname
+)
+install_headers(['sigfm/sigfm.h'],
+  subdir: versioned_libname + '/sigfm'
 )
 
 libfprint_private_dep = declare_dependency(
@@ -343,7 +350,7 @@ sync_udev_udb = custom_target('sync-udev-hwdb',
     command: [
         'cp', '-v',
         udev_hwdb_generator.full_path(),
-        meson.source_root() / 'data'
+        meson.project_source_root() / 'data'
     ]
 )
 
