@@ -75,6 +75,11 @@ developing applications that use %{name}.
 %{_libdir}/pkgconfig/%{name}-2.pc
 %{_datadir}/gir-1.0/*.gir
 %{_datadir}/gtk-doc/html/libfprint-2/
+/usr/lib/debug/usr/libexec/installed-tests/libfprint-2/
+/usr/libexec/installed-tests/libfprint-2/
+/usr/share/installed-tests/libfprint-2/
+
+
 
 %changelog
 %autochangelog
